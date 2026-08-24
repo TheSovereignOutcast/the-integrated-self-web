@@ -139,6 +139,9 @@ section.chunk h3{
 section.chunk p{margin-bottom:13px}
 .rid li{list-style:none;padding:11px 0 11px 15px;border-left:2px solid var(--signal);
   margin-bottom:9px;background:rgba(111,123,232,.06)}
+.rid-label{font-family:'Fraunces',Georgia,serif;font-size:1.5rem;font-weight:500;
+  color:var(--parchment);padding:22px 0 6px;display:block;
+  border-top:1px solid var(--field);margin-top:6px}
 .actions{display:flex;gap:14px;flex-wrap:wrap;margin-top:40px}
 .actions a{
   flex:1;min-width:190px;text-align:center;padding:15px;
@@ -295,7 +298,7 @@ function buildCard(num, name) {
     slot.innerHTML =
       `<div class="card-fallback"><span class="num">${pad(num)}</span><span>${name}</span></div>`;
   };
-  img.src = `/cards/${pad(num)}.jpg`;
+  img.src = `/Cards/${pad(num)}.jpg`;
   slot.appendChild(img);
 }
 
@@ -303,30 +306,46 @@ function buildCard(num, name) {
 function renderSections(text) {
   const host = $('sections');
   host.innerHTML = '';
-  const parts = text.split(/\n(?=\s*(?:\*\*)?\s*\d\.\s*[A-Z][A-Z\s().]{6,})/);
+  // Split on numbered section headers, handling optional ### or ** prefixes
+  const parts = text.split(/\n(?=\s*(?:[#*]+\s*)?\d\.\s*[A-Z][A-Z\s().]{4,})/);
   parts.forEach(part => {
     const trimmed = part.trim();
     if (!trimmed) return;
     const lines = trimmed.split('\n');
-    let head = lines[0].replace(/[*#]/g, '').replace(/^\d\.\s*/, '').trim();
+    // Strip leading #, *, spaces then leading number from header
+    let raw = lines[0].replace(/^[#*\s]+/, '').trim();
+    let head = raw.replace(/^\d+\.\s*/, '').trim();
     let body = lines.slice(1);
-    if (!/^[A-Z][A-Z\s().]{6,}$/.test(head)) { body = lines; head = ''; }
+    if (!/^[A-Z][A-Z\s().]{4,}/.test(head)) { body = lines; head = ''; }
 
     const sec = document.createElement('section');
     sec.className = 'chunk';
     if (head) sec.innerHTML = `<h3>${head}</h3>`;
 
-    const bullets = body.filter(l => /^\s*[-*•]/.test(l));
+    // Real bullets: lines starting with - * • followed by actual content
+    // Filter out bare separator lines like -- or ---
+    const bullets = body.filter(l => /^\s*[-*•]\s*\S/.test(l));
     if (bullets.length >= 2) {
       const ul = document.createElement('ul');
       ul.className = 'rid';
-      bullets.forEach(b => {
+      const ridWords = ['RECOGNIZE','IDENTIFY','DECIDE'];
+      bullets.forEach((b, idx) => {
+        const text = b.replace(/^\s*[-*•]+\s*/, '');
+        const ridMatch = text.match(/^(RECOGNIZE|IDENTIFY|DECIDE)[:\s]+(.*)$/is);
+        const word = ridMatch ? ridMatch[1].toUpperCase()
+                   : (idx < 3 ? ridWords[idx] : null);
+        const content = ridMatch ? ridMatch[2].trim() : text;
+        if (word) {
+          const label = document.createElement('span');
+          label.className = 'rid-label';
+          label.textContent = word;
+          ul.appendChild(label);
+        }
         const li = document.createElement('li');
-        li.innerHTML = b.replace(/^\s*[-*•]\s*/, '')
-                        .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+        li.innerHTML = content.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
         ul.appendChild(li);
       });
-      const intro = body.filter(l => !/^\s*[-*•]/.test(l) && l.trim());
+      const intro = body.filter(l => !/^\s*[-*•]/.test(l) && l.trim() && !/^-{2,}$/.test(l.trim()));
       intro.forEach(p => {
         const el = document.createElement('p');
         el.innerHTML = p.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
@@ -335,9 +354,11 @@ function renderSections(text) {
       sec.appendChild(ul);
     } else {
       body.join('\n').split(/\n\s*\n/).forEach(p => {
-        if (!p.trim()) return;
+        const clean = p.trim();
+        // Skip bare separator lines
+        if (!clean || /^-{2,}$/.test(clean)) return;
         const el = document.createElement('p');
-        el.innerHTML = p.trim().replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+        el.innerHTML = clean.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
         sec.appendChild(el);
       });
     }
