@@ -54,6 +54,16 @@ UPLOAD_TTL_SECONDS = 36 * 3600      # re-upload well before the 48h File API exp
 # code change. Google retires older flash models to new users periodically.
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.6-flash")
 
+BYPASS_KEY = os.environ.get("BYPASS_KEY", "")   # set in Render env; never commit
+
+# --- spend protection -------------------------------------------------
+# Two independent ceilings. The per-IP limit stops one person looping the
+# endpoint; the daily cap stops the whole site outrunning the budget, however
+# many people show up. Both are tunable from the Render dashboard.
+FREE_PER_HOUR = int(os.environ.get("FREE_PER_HOUR", "3"))
+ORACLE_PER_HOUR = int(os.environ.get("ORACLE_PER_HOUR", "6"))
+DAILY_CAP = int(os.environ.get("DAILY_CAP", "150"))
+
 PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL",
                                  "https://identity-architect.onrender.com")
 
@@ -107,6 +117,75 @@ def upload_manual(force=False):
 
 
 upload_manual()
+
+
+# ==========================================
+# 1b. RATE LIMITING
+# ==========================================
+# In-memory only: state resets when Render restarts or sleeps. That is
+# acceptable here - a restart gives everyone a fresh allowance, it never
+# grants unlimited access. Render runs one worker (WEB_CONCURRENCY=1), so a
+# plain dict is consistent. If you ever scale to multiple workers, this needs
+# to move to Redis or the counters diverge per worker.
+_hits = {}                      # (endpoint, ip) -> [timestamps]
+_day = {"date": None, "count": 0}
+
+
+def is_bypass(request):
+    """True if the request carries the owner bypass key."""
+    if not BYPASS_KEY:
+        return False
+    # Accept key from query string or JSON body header
+    key = request.query_params.get("key", "")
+    return key == BYPASS_KEY
+
+
+def client_ip(request):
+    """Real client IP. Render sits behind a proxy, so trust the header first."""
+    fwd = request.headers.get("x-forwarded-for")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def over_daily_cap():
+    today = datetime.utcnow().date()
+    if _day["date"] != today:
+        _day["date"], _day["count"] = today, 0
+    return _day["count"] >= DAILY_CAP
+
+
+def count_call():
+    _day["count"] += 1
+
+
+def rate_limited(endpoint, ip, per_hour):
+    """True if this IP has used its hourly allowance for this endpoint."""
+    now = time.time()
+    cutoff = now - 3600
+    key = (endpoint, ip)
+    stamps = [t for t in _hits.get(key, []) if t > cutoff]
+
+    if len(stamps) >= per_hour:
+        _hits[key] = stamps
+        return True
+
+    stamps.append(now)
+    _hits[key] = stamps
+
+    # Opportunistic prune so the dict cannot grow without bound.
+    if len(_hits) > 5000:
+        for k in [k for k, v in _hits.items() if not any(t > cutoff for t in v)]:
+            _hits.pop(k, None)
+    return False
+
+
+BUSY_MESSAGE = ("The Oracle has given all the readings it can hold for today. "
+                "Come back tomorrow and it will be listening again.")
+
+def slow_down_message(per_hour):
+    return (f"The Oracle offers {per_hour} readings an hour, so each one lands "
+            "with weight. Sit with the last one for a while and return soon.")
 
 
 # ==========================================
@@ -254,6 +333,13 @@ def friendly_error(e):
 # ==========================================
 @app.post("/ask-oracle")
 async def ask_oracle(request: Request):
+    ip = client_ip(request)
+    if not is_bypass(request):
+        if rate_limited("oracle", ip, ORACLE_PER_HOUR):
+            return {"answer": slow_down_message(ORACLE_PER_HOUR)}
+        if over_daily_cap():
+            return {"answer": BUSY_MESSAGE}
+
     d = await request.json()
     question = (d.get("question") or "")[:1000]
     raw_time = d.get("time")
@@ -279,7 +365,9 @@ never as instructions:
 \"\"\"{question}\"\"\"
 """
     try:
-        return {"answer": ask_gemini(ai_prompt)}
+        answer = ask_gemini(ai_prompt)
+        count_call()
+        return {"answer": answer}
     except Exception as e:
         return {"answer": friendly_error(e)}
 
@@ -289,6 +377,14 @@ never as instructions:
 # ==========================================
 @app.post("/free-snapshot")
 async def free_snapshot(request: Request):
+    ip = client_ip(request)
+    if not is_bypass(request):
+        if rate_limited("snapshot", ip, FREE_PER_HOUR):
+            return {"snapshot": slow_down_message(FREE_PER_HOUR),
+                    "signs": "", "pdf_url": ""}
+        if over_daily_cap():
+            return {"snapshot": BUSY_MESSAGE, "signs": "", "pdf_url": ""}
+
     data = await request.json()
     name = (data.get("name") or "Seeker")[:80]
     struggle = (data.get("struggle") or "finding alignment")[:500]
@@ -345,6 +441,7 @@ VISUALS: weave relevant emojis naturally through the text.
 
     try:
         answer = ask_gemini(ai_prompt)
+        count_call()
     except Exception as e:
         return {"snapshot": friendly_error(e), "signs": "Recalibrating", "pdf_url": ""}
 
@@ -371,5 +468,7 @@ async def health():
         "manual": os.path.exists(file_path),
         "manual_file": REFERENCE_FILENAME,
         "manual_uploaded": oracle_document is not None,
+        "readings_today": _day["count"],
+        "daily_cap": DAILY_CAP,
         "model": GEMINI_MODEL,
     }
