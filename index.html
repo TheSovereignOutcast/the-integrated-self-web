@@ -171,7 +171,8 @@ footer{
 <header>
   <div class="eyebrow">The Integrated Self</div>
   <h1>You were born<br>playing a <em>frequency</em>.</h1>
-  <p class="sub">The moment you took your first breath, you were assigned a coordinate on a sixty-four point wheel. Most people never learn to hear it over the noise.</p>
+  <div style="display:flex;justify-content:center;padding:32px 0 8px"><img src="/cover.png" alt="The Integrated Self" style="width:min(260px,62vw);border-radius:2px;box-shadow:0 8px 40px rgba(0,0,0,.55)"></div>
+<p class="sub">The moment you took your first breath, you were assigned a coordinate on a sixty-four point wheel. Most people never learn to hear it over the noise.</p>
 </header>
 
 <div class="wheel-stage">
@@ -231,7 +232,7 @@ footer{
 <script>
 // ---- configuration -------------------------------------------------
 const API = "https://the-integrated-self-app-2h96.onrender.com";
-const GUMROAD_URL = "https://sovereignoutcast.gumroad.com/l/mtnwsh";  // paste your Gumroad product link here
+const GUMROAD_URL = "#";   // paste your Gumroad product link here
 
 // Wheel order, anchored so index 0 == Archetype 41 at 2 Aquarius.
 // Must stay identical to mapping.py on the backend.
@@ -291,7 +292,7 @@ function buildCard(num, name) {
     slot.innerHTML =
       `<div class="card-fallback"><span class="num">${pad(num)}</span><span>${name}</span></div>`;
   };
-  img.src = `/cards/${pad(num)}.png`;
+  img.src = `/cards/${pad(num)}.jpg`;
   slot.appendChild(img);
 }
 
