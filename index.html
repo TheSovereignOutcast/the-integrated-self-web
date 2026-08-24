@@ -334,7 +334,9 @@ function renderSections(text) {
         const ridMatch = text.match(/^(RECOGNIZE|IDENTIFY|DECIDE)[:\s]+(.*)$/is);
         const word = ridMatch ? ridMatch[1].toUpperCase()
                    : (idx < 3 ? ridWords[idx] : null);
-        const content = ridMatch ? ridMatch[2].trim() : text;
+        // Strip repeated label prefix so content doesn't duplicate the header
+        const rawContent = ridMatch ? ridMatch[2].trim() : text;
+        const content = rawContent.replace(/^(RECOGNIZE|IDENTIFY|DECIDE)[:\s]+/i, '');
         if (word) {
           const label = document.createElement('span');
           label.className = 'rid-label';
