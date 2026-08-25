@@ -200,16 +200,24 @@ section.chunk p{margin-bottom:13px}
 .rid-label{font-family:'Fraunces',Georgia,serif;font-size:1.5rem;font-weight:500;
   color:var(--parchment);padding:22px 0 6px;display:block;
   border-top:1px solid var(--field);margin-top:6px}
-.actions{display:flex;gap:14px;flex-wrap:wrap;margin-top:40px}
-.actions a{
-  flex:1;min-width:190px;text-align:center;padding:15px;
-  font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;
-  text-transform:uppercase;text-decoration:none;border-radius:var(--radius);
-  border:1px solid var(--field);color:var(--parchment);transition:border-color .2s,color .2s;
+
+.actions{display:flex;flex-direction:column;gap:12px;margin-top:40px;text-align:center}
+.email-notice{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:12px;
+  color:var(--muted);
+  letter-spacing:.05em;
+  padding:10px;
 }
-.actions a:hover{border-color:var(--brass);color:var(--brass)}
-.actions a.primary{background:var(--signal);border-color:var(--signal);color:#fff}
-.actions a.primary:hover{filter:brightness(1.1);color:#fff}
+.actions a{
+  display:block;width:100%;text-align:center;padding:16px;
+  font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:500;
+  letter-spacing:.18em;text-transform:uppercase;text-decoration:none;border-radius:var(--radius);
+  border:1px solid var(--signal);background:var(--signal);color:#fff;
+  transition:filter .2s,transform .1s;
+}
+.actions a:hover{filter:brightness(1.12)}
+.actions a:active{transform:translateY(1px)}
 
 footer{
   margin-top:80px;padding:30px 0 50px;border-top:1px solid var(--field);
@@ -259,7 +267,7 @@ footer{
     </div>
     <div class="field">
       <label for="email">Email address</label>
-      <input id="email" name="email" type="email" placeholder="Where to send your reading" required>
+      <input id="email" name="email" type="email" placeholder="Where to send your PDF reading" required>
     </div>
     <div class="field">
       <label for="date">Birth date</label>
@@ -285,7 +293,6 @@ footer{
 <div class="status" id="status"></div>
 
 <div id="result">
-  <!-- Layout B: Top-Aligned Twin Cards with Middle Header -->
   <div class="card-row">
     <div id="cardSlot"></div>
     <div class="meta">
@@ -306,7 +313,7 @@ footer{
 // ---- configuration -------------------------------------------------
 const API = "https://the-integrated-self-app-2h96.onrender.com";
 const BYPASS_KEY = new URLSearchParams(window.location.search).get('key') || '';
-const GUMROAD_URL = "https://gumroad.com"; // Replace with your direct book purchase URL
+const GUMROAD_URL = "#"; // Replace with your Gumroad link when ready
 
 const WHEEL_ORDER = [
   41,19,13,49,30,55,37,63,22,36, 25,17,21,51,42,3,27,24,2,23,
@@ -546,11 +553,10 @@ function displayReadingData(data) {
 
   const actions = $('actions');
   if (actions) {
-    actions.innerHTML = '';
-    if (data.pdf_url) {
-      actions.innerHTML += `<a href="${data.pdf_url}" target="_blank" rel="noopener">Download this reading</a>`;
-    }
-    actions.innerHTML += `<a class="primary" href="${GUMROAD_URL}" target="_blank" rel="noopener">Get the full reference book</a>`;
+    actions.innerHTML = `
+      <div class="email-notice">✦ A copy of your reading has been sent to your inbox.</div>
+      <a class="primary" href="${GUMROAD_URL}" target="_blank" rel="noopener">Get the full reference book</a>
+    `;
   }
 
   $('result').classList.add('show');
@@ -618,7 +624,6 @@ $('form').addEventListener('submit', async e => {
     }
 
     clearStatus();
-    // Cache reading locally
     localStorage.setItem('integrated_self_reading', JSON.stringify(data));
     displayReadingData(data);
 
