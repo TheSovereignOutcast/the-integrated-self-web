@@ -439,13 +439,13 @@ function renderSections(text) {
           ul.appendChild(label);
         }
         const li = document.createElement('li');
-        li.innerHTML = content.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+        li.innerHTML = content.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\*\*/g, '').replace(/^###\s*/gm, '');
         ul.appendChild(li);
       });
       const intro = body.filter(l => !/^\s*[-*•]/.test(l) && l.trim() && !/^-{2,}$/.test(l.trim()));
       intro.forEach(p => {
         const el = document.createElement('p');
-        el.innerHTML = p.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+        el.innerHTML = p.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\*\*/g, '').replace(/^###\s*/gm, '');
         sec.appendChild(el);
       });
       sec.appendChild(ul);
@@ -454,7 +454,7 @@ function renderSections(text) {
         const clean = p.trim();
         if (!clean || /^-{2,}$/.test(clean)) return;
         const el = document.createElement('p');
-        el.innerHTML = clean.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+        el.innerHTML = clean.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\*\*/g, '').replace(/^###\s*/gm, '');
         sec.appendChild(el);
       });
     }
