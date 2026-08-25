@@ -397,6 +397,10 @@ function renderSections(text) {
   host.innerHTML = '';
   if (!text) return;
 
+  function cleanHTML(str) {
+    return str.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\*\*/g, '').replace(/^###\s*/gm, '');
+  }
+
   const parts = text.split(/\n(?=\s*(?:[#*]+\s*)?\d\.\s*[A-Z][A-Z\s().]{4,})/);
   parts.forEach(part => {
     const trimmed = part.trim();
@@ -407,24 +411,28 @@ function renderSections(text) {
     let body = lines.slice(1);
     if (!/^[A-Z][A-Z\s().]{4,}/.test(head)) { body = lines; head = ''; }
 
+    // Only apply R.I.D. labels inside the R.I.D./Protocol section
+    const isRIDSection = /R\.?I\.?D|PROTOCOL/i.test(head);
+
     const sec = document.createElement('section');
     sec.className = 'chunk';
-    if (head) sec.innerHTML = `<h3>${head}</h3>`;
+    if (head) sec.innerHTML = `<h3>${cleanHTML(head)}</h3>`;
 
     const bullets = body.filter(l => /^\s*[-*•]\s*\S/.test(l));
-    const seenLabels = new Set();
-    const dedupedBullets = bullets.filter(b => {
-      const m = b.replace(/^\s*[-*•]+\s*/,'').match(/^(RECOGNIZE|IDENTIFY|DECIDE)/i);
-      if (!m) return true;
-      const k = m[1].toUpperCase();
-      if (seenLabels.has(k)) return false;
-      seenLabels.add(k); return true;
-    });
 
-    if (dedupedBullets.length >= 2) {
+    if (isRIDSection && bullets.length >= 1) {
+      // R.I.D. section only — apply RECOGNIZE/IDENTIFY/DECIDE labels
       const ul = document.createElement('ul');
       ul.className = 'rid';
       const ridWords = ['RECOGNIZE','IDENTIFY','DECIDE'];
+      const seenLabels = new Set();
+      const dedupedBullets = bullets.filter(b => {
+        const m = b.replace(/^\s*[-*•]+\s*/,'').match(/^(RECOGNIZE|IDENTIFY|DECIDE)/i);
+        if (!m) return true;
+        const k = m[1].toUpperCase();
+        if (seenLabels.has(k)) return false;
+        seenLabels.add(k); return true;
+      });
       dedupedBullets.forEach((b, idx) => {
         const textStr = b.replace(/^\s*[-*•]+\s*/, '')
                          .replace(/^\*{1,2}\s*(RECOGNIZE|IDENTIFY|DECIDE)\s*:?\s*\*{1,2}\s*:?/i, '$1:');
@@ -439,22 +447,24 @@ function renderSections(text) {
           ul.appendChild(label);
         }
         const li = document.createElement('li');
-        li.innerHTML = content.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\*\*/g, '').replace(/^###\s*/gm, '');
+        li.innerHTML = cleanHTML(content);
         ul.appendChild(li);
       });
       const intro = body.filter(l => !/^\s*[-*•]/.test(l) && l.trim() && !/^-{2,}$/.test(l.trim()));
       intro.forEach(p => {
         const el = document.createElement('p');
-        el.innerHTML = p.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\*\*/g, '').replace(/^###\s*/gm, '');
+        el.innerHTML = cleanHTML(p);
         sec.appendChild(el);
       });
       sec.appendChild(ul);
     } else {
-      body.join('\n').split(/\n\s*\n/).forEach(p => {
-        const clean = p.trim();
+      // All other sections — render bullets as plain paragraphs
+      body.forEach(line => {
+        const clean = line.trim();
         if (!clean || /^-{2,}$/.test(clean)) return;
         const el = document.createElement('p');
-        el.innerHTML = clean.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\*\*/g, '').replace(/^###\s*/gm, '');
+        // Strip bullet markers for non-RID sections
+        el.innerHTML = cleanHTML(clean.replace(/^\s*[-*•]\s*/, ''));
         sec.appendChild(el);
       });
     }
@@ -514,8 +524,7 @@ function buildSignBlurb(sun, moon, rising) {
 
 function displayReadingData(data) {
   const sun = data.archetypes.sun;
-  const nameMatch = (data.snapshot.match(/Archetype\s+\d+[:\s—-]+([A-Za-z' ]+)/) || [])[1];
-  const label = nameMatch ? nameMatch.trim() : `Archetype ${sun.archetype}`;
+  const label = `Archetype ${sun.archetype}`;
 
   const signsRaw = data.signs || '';
   const signParts = signsRaw.split('|').map(s => s.trim());
