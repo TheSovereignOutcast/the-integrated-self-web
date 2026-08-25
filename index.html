@@ -137,6 +137,25 @@ section.chunk h3{
   padding-bottom:9px;border-bottom:1px solid var(--field);margin-bottom:15px;
 }
 section.chunk p{margin-bottom:13px}
+
+/* ---------- astro breakdown + sign card ---------- */
+#breakdown{
+  margin:0 0 34px;padding:20px 22px;border-left:2px solid var(--brass);
+  background:rgba(201,146,43,.05);font-size:1.02rem;line-height:1.75;
+}
+#breakdown b{color:var(--brass);font-weight:500}
+.sign-card-art{
+  width:190px;flex-shrink:0;border:1px solid var(--field);border-radius:var(--radius);
+  background:var(--deep);aspect-ratio:2/3;object-fit:cover;
+}
+.sign-card-fallback{
+  width:190px;flex-shrink:0;aspect-ratio:2/3;border:1px solid var(--field);
+  border-radius:var(--radius);background:var(--deep);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  font-family:'IBM Plex Mono',monospace;color:var(--muted);font-size:11px;
+  letter-spacing:.16em;text-transform:uppercase;text-align:center;padding:16px;
+}
+.sign-card-fallback .glyph{font-family:'Fraunces',serif;font-size:40px;color:var(--brass)}
 .rid li{list-style:none;padding:11px 0 11px 15px;border-left:2px solid var(--signal);
   margin-bottom:9px;background:rgba(111,123,232,.06)}
 .rid-label{font-family:'Fraunces',Georgia,serif;font-size:1.5rem;font-weight:500;
@@ -227,7 +246,9 @@ footer{
       <h2 id="archName">—</h2>
       <div class="coords" id="coords"></div>
     </div>
+    <div id="signCardSlot"></div>
   </div>
+  <div id="breakdown"></div>
   <div id="sections"></div>
   <div class="actions" id="actions"></div>
 </div>
@@ -288,6 +309,86 @@ function setStatus(msg, isError) {
 function clearStatus() { statusEl.className = 'status'; }
 
 const pad = n => String(n).padStart(2, '0');
+
+// ---- astro breakdown templates ---------------------------------------
+// Short, fixed phrases per sign x role. Assembled client-side - no AI
+// call needed, so tone stays consistent and there's no added latency/cost.
+const SUN_TRAIT = {
+  Aries: "a spark that has to move first and ask questions later",
+  Taurus: "a steady hand that builds what's meant to last",
+  Gemini: "a mind that never stops",
+  Cancer: "a heart that remembers everything it's ever felt",
+  Leo: "a light that was never built to dim itself for the room",
+  Virgo: "an eye that catches what everyone else walks past",
+  Libra: "a search for the balance point in every room you enter",
+  Scorpio: "a depth that doesn't do anything halfway",
+  Sagittarius: "a hunger for the horizon you haven't reached yet",
+  Capricorn: "a will that keeps building long after everyone else stopped",
+  Aquarius: "a mind that was already three steps into tomorrow",
+  Pisces: "a current that feels everything before it can name it",
+};
+const MOON_TRAIT = {
+  Aries: "burning hot and fast, then moving on before anyone catches up",
+  Taurus: "needing steadiness the way a body needs ground underfoot",
+  Gemini: "talking its way through every feeling before it settles",
+  Cancer: "carrying the room's emotional weather, whether it wants to or not",
+  Leo: "needing to be truly seen before it can rest",
+  Virgo: "sorting every feeling into something useful before it trusts it",
+  Libra: "uneasy until the people around it are okay too",
+  Scorpio: "running deep and quiet until it can't be held back anymore",
+  Sagittarius: "restless the moment a feeling starts to feel like a cage",
+  Capricorn: "guarding its softest parts behind quiet competence",
+  Aquarius: "stepping back to think its way through what it's feeling",
+  Pisces: "soaking up everyone else's mood as if it were its own",
+};
+const RISING_TRAIT = {
+  Aries: "Direct, quick to act, impossible to ignore",
+  Taurus: "Grounded, unhurried, quietly immovable",
+  Gemini: "Quick, curious, and adaptable",
+  Cancer: "Warm on approach, careful about who gets in close",
+  Leo: "Magnetic, warm, impossible not to notice",
+  Virgo: "Precise, observant, quietly assessing everything",
+  Libra: "Charming, easy to talk to, instinctively diplomatic",
+  Scorpio: "Intense, magnetic, hard to read at first",
+  Sagittarius: "Open, restless, ready for the next thing",
+  Capricorn: "Composed, capable, already three steps ahead",
+  Aquarius: "Unconventional, detached, refreshingly original",
+  Pisces: "Dreamy, gentle, hard to pin down",
+};
+
+function renderBreakdown(zodiac) {
+  const host = $('breakdown');
+  if (!zodiac || !zodiac.sun || !zodiac.moon || !zodiac.rising) {
+    host.innerHTML = '';
+    return;
+  }
+  const sun = zodiac.sun, moon = zodiac.moon, rising = zodiac.rising;
+  const sunT = SUN_TRAIT[sun] || "a signature all its own";
+  const moonT = MOON_TRAIT[moon] || "running its own quiet weather";
+  const risT = RISING_TRAIT[rising] || "Unmistakably its own presence";
+  host.innerHTML =
+    `Your <b>${sun}</b> sun placing is ${sunT}. ` +
+    `Your <b>${moon}</b> moon rules your emotional center, ${moonT}. ` +
+    `And the world meets you through your <b>${rising}</b> rising — ${risT}.`;
+}
+
+// Sign card art lives in /SignCards/{sign-lowercase}.jpg (12 files total,
+// one per zodiac sign). If a file is missing, show a text fallback tile -
+// same safe-launch pattern as the archetype cards.
+function buildSignCard(sign) {
+  const slot = $('signCardSlot');
+  if (!sign) { slot.innerHTML = ''; return; }
+  slot.innerHTML = '';
+  const img = new Image();
+  img.className = 'sign-card-art';
+  img.alt = `${sign} sun sign`;
+  img.onerror = () => {
+    slot.innerHTML =
+      `<div class="sign-card-fallback"><span class="glyph">${sign[0]}</span><span>${sign}</span></div>`;
+  };
+  img.src = `/SignCards/${sign.toLowerCase()}.jpg`;
+  slot.appendChild(img);
+}
 
 function buildCard(num, name) {
   const slot = $('cardSlot');
@@ -428,6 +529,8 @@ $('form').addEventListener('submit', async e => {
       `<span style="color:var(--muted)">${data.signs || ''}</span>`;
 
     buildCard(sun.archetype, label);
+    buildSignCard((data.zodiac && data.zodiac.sun) || null);
+    renderBreakdown(data.zodiac);
     renderSections(data.snapshot);
 
     const actions = $('actions');
