@@ -471,8 +471,8 @@ $('form').addEventListener('submit', async e => {
   setStatus('Calculating your coordinate…');
   // Render's free tier sleeps; warn before the user assumes it's broken.
   const slow = setTimeout(
-    () => setStatus('Still working. The engine wakes from sleep on the first request of the day — this can take up to a minute.'),
-    6000
+    () => setStatus('Still calculating — engine is warming up. This can take up to 90 seconds on the first request…'),
+    8000
   );
 
   const payload = {
@@ -483,9 +483,25 @@ $('form').addEventListener('submit', async e => {
     struggle: $('struggle').value.trim() || 'finding alignment'
   };
 
+  async function fetchWithRetry(u, opts, retries=2) {
+    for (let i = 0; i < retries; i++) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 90000);
+        const r = await fetch(u, {...opts, signal: controller.signal});
+        clearTimeout(timer);
+        return r;
+      } catch(e) {
+        if (i === retries - 1) throw e;
+        setStatus('Still connecting — engine waking up, retrying…');
+        await new Promise(res => setTimeout(res, 5000));
+      }
+    }
+  }
+
   try {
     const url = BYPASS_KEY ? `${API}/free-snapshot?key=${encodeURIComponent(BYPASS_KEY)}` : `${API}/free-snapshot`;
-    const res = await fetch(url, {
+    const res = await fetchWithRetry(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
