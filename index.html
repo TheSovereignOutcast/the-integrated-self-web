@@ -521,24 +521,28 @@ $('form').addEventListener('submit', async e => {
     const nameMatch = (data.snapshot.match(/Archetype\s+\d+[:\s—-]+([A-Za-z' ]+)/) || [])[1];
     const label = nameMatch ? nameMatch.trim() : `Archetype ${sun.archetype}`;
 
+    // Extract signs in outer scope so buildSignCard and coords have full access
+    const signsRaw = data.signs || '';
+    const signParts = signsRaw.split('|').map(s => s.trim());
+    const sunSign    = (signParts[0] || '').replace(/ Sun$/i, '').trim();
+    const moonSign   = (signParts[1] || '').replace(/ Moon$/i, '').trim();
+    const risingSign = (signParts[2] || '').replace(/ Rising$/i, '').trim();
+
     lightWheel(sun.archetype);
     $('dialNum').textContent = pad(sun.archetype);
     $('dialLabel').textContent = `line ${sun.line}`;
     $('archName').textContent = label;
-    $('coords').innerHTML =
+
+    let coordsHTML =
       `Core identity &nbsp;<b>Archetype ${sun.archetype}, line ${sun.line}</b><br>` +
       `Emotional body &nbsp;<b>Archetype ${data.archetypes.moon.archetype}, line ${data.archetypes.moon.line}</b><br>` +
       `Interface &nbsp;<b>Archetype ${data.archetypes.rising.archetype}, line ${data.archetypes.rising.line}</b><br>` +
-      `<span style="color:var(--muted)">${data.signs || ''}</span>` +
-      (() => {
-        const signsRaw = data.signs || '';
-        const parts = signsRaw.split('|').map(s => s.trim());
-        const sunSign    = (parts[0] || '').replace(/ Sun$/i,'').trim();
-        const moonSign   = (parts[1] || '').replace(/ Moon$/i,'').trim();
-        const risingSign = (parts[2] || '').replace(/ Rising$/i,'').trim();
-        if (!sunSign || !moonSign || !risingSign) return '';
-        return '<div style=\"margin-top:14px;font-size:14px;line-height:1.75;color:var(--muted);font-style:italic\">' + buildSignBlurb(sunSign, moonSign, risingSign) + '</div>';
-      })();
+      `<span style="color:var(--muted)">${signsRaw}</span>`;
+
+    if (sunSign && moonSign && risingSign) {
+      coordsHTML += '<div style="margin-top:14px;font-size:14px;line-height:1.75;color:var(--muted);font-style:italic">' + buildSignBlurb(sunSign, moonSign, risingSign) + '</div>';
+    }
+    $('coords').innerHTML = coordsHTML;
 
     buildCard(sun.archetype, label);
     buildSignCard(sunSign);
