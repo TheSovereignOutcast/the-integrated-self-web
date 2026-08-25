@@ -331,7 +331,11 @@ function renderSections(text) {
       ul.className = 'rid';
       const ridWords = ['RECOGNIZE','IDENTIFY','DECIDE'];
       bullets.forEach((b, idx) => {
-        const text = b.replace(/^\s*[-*•]+\s*/, '');
+        const text = b.replace(/^\s*[-*•]+\s*/, '')
+                      // Normalize a bold-wrapped label (**RECOGNIZE:**, **RECOGNIZE**:, etc.)
+                      // down to plain "LABEL:" so the match below finds it regardless of
+                      // where the AI happened to put the asterisks.
+                      .replace(/^\*{1,2}\s*(RECOGNIZE|IDENTIFY|DECIDE)\s*:?\s*\*{1,2}\s*:?/i, '$1:');
         const ridMatch = text.match(/^(RECOGNIZE|IDENTIFY|DECIDE)[:\s]+(.*)$/is);
         const word = ridMatch ? ridMatch[1].toUpperCase()
                    : (idx < 3 ? ridWords[idx] : null);
