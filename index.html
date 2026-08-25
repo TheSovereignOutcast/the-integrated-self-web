@@ -505,7 +505,7 @@ function buildSignBlurb(sun, moon, rising) {
   return 'Your ' + sun + ' Sun placing is ' + s + '. As your ' + moon + ' Moon rules your emotional center, ' + m + '. While the world witnesses you as your ' + rising + ' Rising — ' + r + '.';
 }
 
-// ---- submit handler -------------------------------------------------
+// ---- submit handler (No Abort Cutoff) -------------------------------
 $('form').addEventListener('submit', async e => {
   e.preventDefault();
   const btn = $('go');
@@ -513,10 +513,6 @@ $('form').addEventListener('submit', async e => {
   $('result').classList.remove('show');
 
   setStatus('Calculating your coordinate…');
-  const slow = setTimeout(
-    () => setStatus('Still calculating — engine is warming up. This can take up to 90 seconds on the first request…'),
-    8000
-  );
 
   const payload = {
     name: $('name').value.trim(),
@@ -526,36 +522,21 @@ $('form').addEventListener('submit', async e => {
     struggle: $('struggle').value.trim() || 'finding alignment'
   };
 
-  async function fetchWithRetry(u, opts, retries=2) {
-    for (let i = 0; i < retries; i++) {
-      try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 90000);
-        const r = await fetch(u, {...opts, signal: controller.signal});
-        clearTimeout(timer);
-        return r;
-      } catch(e) {
-        if (i === retries - 1) throw e;
-        setStatus('Still connecting — engine waking up, retrying…');
-        await new Promise(res => setTimeout(res, 5000));
-      }
-    }
-  }
-
   try {
     const url = BYPASS_KEY ? `${API}/free-snapshot?key=${encodeURIComponent(BYPASS_KEY)}` : `${API}/free-snapshot`;
-    const res = await fetchWithRetry(url, {
+    
+    // Direct fetch with standard browser connection lifecycle
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    clearTimeout(slow);
 
-    if (!res.ok) throw new Error(`Server responded with status ${res.status}`);
+    if (!res.ok) throw new Error(`Server responded with HTTP ${res.status}`);
     const data = await res.json();
 
     if (!data.archetypes || !data.archetypes.sun) {
-      setStatus(data.snapshot || 'That reading could not be calculated. Check the birth details and try again.', true);
+      setStatus(data.snapshot || 'Calculation error. Check birth details and try again.', true);
       btn.disabled = false;
       return;
     }
@@ -608,9 +589,8 @@ $('form').addEventListener('submit', async e => {
     $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   } catch (err) {
-    clearTimeout(slow);
-    console.error("UI Render Exception:", err);
-    setStatus(`Engine error: ${err.message || err}`, true);
+    console.error("UI Exception:", err);
+    setStatus(`Error: ${err.message || err}`, true);
   } finally {
     btn.disabled = false;
   }
