@@ -109,7 +109,7 @@ button:disabled{opacity:.45;cursor:wait}
 .status.show{display:block}
 .status.error{border-color:#7A3B4A;color:#E5A3AF}
 
-/* ---------- result (Layout B: Header Banner + Flowing Subtext) ---------- */
+/* ---------- result (Layout B) ---------- */
 #result{display:none;margin:56px 0 0}
 #result.show{display:block;animation:rise .7s ease both}
 @keyframes rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
@@ -253,9 +253,13 @@ footer{
 
 <form id="form" autocomplete="on">
   <div class="grid">
-    <div class="field full">
+    <div class="field">
       <label for="name">Name</label>
       <input id="name" name="name" type="text" placeholder="What should we call you?" required>
+    </div>
+    <div class="field">
+      <label for="email">Email address</label>
+      <input id="email" name="email" type="email" placeholder="Where to send your reading" required>
     </div>
     <div class="field">
       <label for="date">Birth date</label>
@@ -302,7 +306,7 @@ footer{
 // ---- configuration -------------------------------------------------
 const API = "https://the-integrated-self-app-2h96.onrender.com";
 const BYPASS_KEY = new URLSearchParams(window.location.search).get('key') || '';
-const GUMROAD_URL = "#";
+const GUMROAD_URL = "https://gumroad.com"; // Replace with your direct book purchase URL
 
 const WHEEL_ORDER = [
   41,19,13,49,30,55,37,63,22,36, 25,17,21,51,42,3,27,24,2,23,
@@ -505,7 +509,67 @@ function buildSignBlurb(sun, moon, rising) {
   return 'Your ' + sun + ' Sun placing is ' + s + '. As your ' + moon + ' Moon rules your emotional center, ' + m + '. While the world witnesses you as your ' + rising + ' Rising — ' + r + '.';
 }
 
-// ---- submit handler (No Abort Cutoff) -------------------------------
+function displayReadingData(data) {
+  const sun = data.archetypes.sun;
+  const nameMatch = (data.snapshot.match(/Archetype\s+\d+[:\s—-]+([A-Za-z' ]+)/) || [])[1];
+  const label = nameMatch ? nameMatch.trim() : `Archetype ${sun.archetype}`;
+
+  const signsRaw = data.signs || '';
+  const signParts = signsRaw.split('|').map(s => s.trim());
+  const sunSign    = (signParts[0] || '').replace(/ Sun$/i, '').trim();
+  const moonSign   = (signParts[1] || '').replace(/ Moon$/i, '').trim();
+  const risingSign = (signParts[2] || '').replace(/ Rising$/i, '').trim();
+
+  lightWheel(sun.archetype);
+  $('dialNum').textContent = pad(sun.archetype);
+  $('dialLabel').textContent = `line ${sun.line}`;
+  $('archName').textContent = label;
+
+  $('coords').innerHTML =
+    `Core identity &nbsp;<b>Archetype ${sun.archetype}, line ${sun.line}</b><br>` +
+    `Emotional body &nbsp;<b>Archetype ${data.archetypes.moon.archetype}, line ${data.archetypes.moon.line}</b><br>` +
+    `Interface &nbsp;<b>Archetype ${data.archetypes.rising.archetype}, line ${data.archetypes.rising.line}</b><br>` +
+    `<span style="color:var(--muted)">${signsRaw}</span>`;
+
+  const blurbSlot = $('signBlurbContainer');
+  if (blurbSlot) {
+    if (sunSign && moonSign && risingSign) {
+      blurbSlot.innerHTML = `<div class="sign-blurb">${buildSignBlurb(sunSign, moonSign, risingSign)}</div>`;
+    } else {
+      blurbSlot.innerHTML = '';
+    }
+  }
+
+  buildCard(sun.archetype, label);
+  buildSignCard(sunSign);
+  renderSections(data.snapshot);
+
+  const actions = $('actions');
+  if (actions) {
+    actions.innerHTML = '';
+    if (data.pdf_url) {
+      actions.innerHTML += `<a href="${data.pdf_url}" target="_blank" rel="noopener">Download this reading</a>`;
+    }
+    actions.innerHTML += `<a class="primary" href="${GUMROAD_URL}" target="_blank" rel="noopener">Get the full reference book</a>`;
+  }
+
+  $('result').classList.add('show');
+  $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Check local storage on load
+window.addEventListener('DOMContentLoaded', () => {
+  const savedReading = localStorage.getItem('integrated_self_reading');
+  if (savedReading && !BYPASS_KEY) {
+    try {
+      const parsed = JSON.parse(savedReading);
+      displayReadingData(parsed);
+      setStatus('Viewing your saved complimentary reading.');
+    } catch(e) {}
+  }
+});
+
+// ---- submit handler -------------------------------------------------
 $('form').addEventListener('submit', async e => {
   e.preventDefault();
   const btn = $('go');
@@ -516,6 +580,7 @@ $('form').addEventListener('submit', async e => {
 
   const payload = {
     name: $('name').value.trim(),
+    email: $('email').value.trim().toLowerCase(),
     date: $('date').value,
     time: $('time').value,
     location: $('location').value.trim(),
@@ -525,12 +590,23 @@ $('form').addEventListener('submit', async e => {
   try {
     const url = BYPASS_KEY ? `${API}/free-snapshot?key=${encodeURIComponent(BYPASS_KEY)}` : `${API}/free-snapshot`;
     
-    // Direct fetch with standard browser connection lifecycle
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
+
+    if (res.status === 403) {
+      const errData = await res.json();
+      setStatus(errData.detail || 'You have already claimed your complimentary reading. Unlock the full Master Reference Book below.', true);
+      const actions = $('actions');
+      if (actions) {
+        actions.innerHTML = `<a class="primary" href="${GUMROAD_URL}" target="_blank" rel="noopener">Unlock The Master Reference Book</a>`;
+        $('result').classList.add('show');
+      }
+      btn.disabled = false;
+      return;
+    }
 
     if (!res.ok) throw new Error(`Server responded with HTTP ${res.status}`);
     const data = await res.json();
@@ -542,51 +618,9 @@ $('form').addEventListener('submit', async e => {
     }
 
     clearStatus();
-    const sun = data.archetypes.sun;
-    const nameMatch = (data.snapshot.match(/Archetype\s+\d+[:\s—-]+([A-Za-z' ]+)/) || [])[1];
-    const label = nameMatch ? nameMatch.trim() : `Archetype ${sun.archetype}`;
-
-    const signsRaw = data.signs || '';
-    const signParts = signsRaw.split('|').map(s => s.trim());
-    const sunSign    = (signParts[0] || '').replace(/ Sun$/i, '').trim();
-    const moonSign   = (signParts[1] || '').replace(/ Moon$/i, '').trim();
-    const risingSign = (signParts[2] || '').replace(/ Rising$/i, '').trim();
-
-    lightWheel(sun.archetype);
-    $('dialNum').textContent = pad(sun.archetype);
-    $('dialLabel').textContent = `line ${sun.line}`;
-    $('archName').textContent = label;
-
-    $('coords').innerHTML =
-      `Core identity &nbsp;<b>Archetype ${sun.archetype}, line ${sun.line}</b><br>` +
-      `Emotional body &nbsp;<b>Archetype ${data.archetypes.moon.archetype}, line ${data.archetypes.moon.line}</b><br>` +
-      `Interface &nbsp;<b>Archetype ${data.archetypes.rising.archetype}, line ${data.archetypes.rising.line}</b><br>` +
-      `<span style="color:var(--muted)">${signsRaw}</span>`;
-
-    const blurbSlot = $('signBlurbContainer');
-    if (blurbSlot) {
-      if (sunSign && moonSign && risingSign) {
-        blurbSlot.innerHTML = `<div class="sign-blurb">${buildSignBlurb(sunSign, moonSign, risingSign)}</div>`;
-      } else {
-        blurbSlot.innerHTML = '';
-      }
-    }
-
-    buildCard(sun.archetype, label);
-    buildSignCard(sunSign);
-    renderSections(data.snapshot);
-
-    const actions = $('actions');
-    if (actions) {
-      actions.innerHTML = '';
-      if (data.pdf_url) {
-        actions.innerHTML += `<a href="${data.pdf_url}" target="_blank" rel="noopener">Download this reading</a>`;
-      }
-      actions.innerHTML += `<a class="primary" href="${GUMROAD_URL}" target="_blank" rel="noopener">Get the full reference book</a>`;
-    }
-
-    $('result').classList.add('show');
-    $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Cache reading locally
+    localStorage.setItem('integrated_self_reading', JSON.stringify(data));
+    displayReadingData(data);
 
   } catch (err) {
     console.error("UI Exception:", err);
