@@ -326,11 +326,20 @@ function renderSections(text) {
     // Real bullets: lines starting with - * • followed by actual content
     // Filter out bare separator lines like -- or ---
     const bullets = body.filter(l => /^\s*[-*•]\s*\S/.test(l));
-    if (bullets.length >= 2) {
+    // De-duplicate RECOGNIZE/IDENTIFY/DECIDE — keep only the first occurrence of each
+    const seenLabels = new Set();
+    const dedupedBullets = bullets.filter(b => {
+      const m = b.replace(/^\s*[-*•]+\s*/,'').match(/^(RECOGNIZE|IDENTIFY|DECIDE)/i);
+      if (!m) return true;
+      const k = m[1].toUpperCase();
+      if (seenLabels.has(k)) return false;
+      seenLabels.add(k); return true;
+    });
+    if (dedupedBullets.length >= 2) {
       const ul = document.createElement('ul');
       ul.className = 'rid';
       const ridWords = ['RECOGNIZE','IDENTIFY','DECIDE'];
-      bullets.forEach((b, idx) => {
+      dedupedBullets.forEach((b, idx) => {
         const text = b.replace(/^\s*[-*•]+\s*/, '')
                       // Normalize a bold-wrapped label (**RECOGNIZE:**, **RECOGNIZE**:, etc.)
                       // down to plain "LABEL:" so the match below finds it regardless of
@@ -371,6 +380,57 @@ function renderSections(text) {
     }
     host.appendChild(sec);
   });
+}
+
+
+// ---- tropical sign descriptions ------------------------------------
+const SUN_DESC = {
+  Aries:'a spark that strikes before anyone else even sees the match',
+  Taurus:'a force that builds slowly, then holds what it builds forever',
+  Gemini:'a mind that never stops connecting dots',
+  Cancer:'a core that feels the room before it reads the room',
+  Leo:'a signal that radiates whether it means to or not',
+  Virgo:'a precision instrument that finds the flaw in order to fix it',
+  Libra:'a frequency tuned to the exact weight of every side',
+  Scorpio:'a depth that sees what others choose not to look at',
+  Sagittarius:'a restless fire aimed at the next true thing over the horizon',
+  Capricorn:'a structural mind that builds toward something that will last',
+  Aquarius:'a signal from outside the system, looking back at it clearly',
+  Pisces:'a vessel that absorbs the frequencies of everything around it'
+};
+const MOON_DESC = {
+  Aries:'you process emotion by moving first and feeling the impact after',
+  Taurus:'you need stillness to feel safe — disruption costs you more than most',
+  Gemini:'you think your way through feeling, narrating the inner weather as it moves',
+  Cancer:"you carry the room's emotional weather without being asked to",
+  Leo:'you need to be seen inside your feeling to fully move through it',
+  Virgo:'you analyze before you allow — the emotion has to make sense first',
+  Libra:'you feel most at peace when the people around you are at peace',
+  Scorpio:'you feel everything at full intensity and trust almost none of it at face value',
+  Sagittarius:'you move through emotion by moving toward meaning',
+  Capricorn:'you contain the feeling until you can do something useful with it',
+  Aquarius:'you observe your own emotion from a slight distance, curious rather than consumed',
+  Pisces:"you absorb others' feelings as naturally as you breathe"
+};
+const RISING_DESC = {
+  Aries:'a presence that arrives before the introduction does',
+  Taurus:'a grounded, unhurried steadiness that makes the room settle',
+  Gemini:'quick, curious, and adaptable — someone who seems to know everyone',
+  Cancer:'a warmth that makes people feel held before a word is spoken',
+  Leo:'someone who draws the eye without trying to',
+  Virgo:'precise and attentive — the person who actually reads the fine print',
+  Libra:'poised and considered — someone who makes others feel weighed fairly',
+  Scorpio:'an intensity underneath a still surface that people sense immediately',
+  Sagittarius:'an openness that makes any room feel like the beginning of something',
+  Capricorn:'composed and capable — someone who looks like they know what to do',
+  Aquarius:"distinctive and unhurried — someone who clearly isn't performing for anyone",
+  Pisces:'soft, receptive, and slightly elsewhere — a presence that feels like water'
+};
+function buildSignBlurb(sun, moon, rising) {
+  const s = SUN_DESC[sun] || sun;
+  const m = MOON_DESC[moon] || moon;
+  const r = RISING_DESC[rising] || rising;
+  return 'Your ' + sun + ' Sun placing is ' + s + '. As your ' + moon + ' Moon rules your emotional center, ' + m + '. While the world witnesses you as your ' + rising + ' Rising — ' + r + '.';
 }
 
 // ---- submit ---------------------------------------------------------
@@ -425,7 +485,16 @@ $('form').addEventListener('submit', async e => {
       `Core identity &nbsp;<b>Archetype ${sun.archetype}, line ${sun.line}</b><br>` +
       `Emotional body &nbsp;<b>Archetype ${data.archetypes.moon.archetype}, line ${data.archetypes.moon.line}</b><br>` +
       `Interface &nbsp;<b>Archetype ${data.archetypes.rising.archetype}, line ${data.archetypes.rising.line}</b><br>` +
-      `<span style="color:var(--muted)">${data.signs || ''}</span>`;
+      `<span style="color:var(--muted)">${data.signs || ''}</span>` +
+      (() => {
+        const signsRaw = data.signs || '';
+        const parts = signsRaw.split('|').map(s => s.trim());
+        const sunSign    = (parts[0] || '').replace(/ Sun$/i,'').trim();
+        const moonSign   = (parts[1] || '').replace(/ Moon$/i,'').trim();
+        const risingSign = (parts[2] || '').replace(/ Rising$/i,'').trim();
+        if (!sunSign || !moonSign || !risingSign) return '';
+        return '<div style=\"margin-top:14px;font-size:14px;line-height:1.75;color:var(--muted);font-style:italic\">' + buildSignBlurb(sunSign, moonSign, risingSign) + '</div>';
+      })();
 
     buildCard(sun.archetype, label);
     renderSections(data.snapshot);
