@@ -418,7 +418,7 @@ function renderSections(text) {
     sec.className = 'chunk';
     if (head) sec.innerHTML = `<h3>${cleanHTML(head)}</h3>`;
 
-    const bullets = body.filter(l => /^\s*[-*•]\s*\S/.test(l));
+    const bullets = body.filter(l => /^\s*[-*•]\s*\S/.test(l) || /^\s*(RECOGNIZE|IDENTIFY|DECIDE)/i.test(l));
 
     if (isRIDSection && bullets.length >= 1) {
       // R.I.D. section only — apply RECOGNIZE/IDENTIFY/DECIDE labels
