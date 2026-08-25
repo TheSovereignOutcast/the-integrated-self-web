@@ -113,6 +113,12 @@ button:disabled{opacity:.45;cursor:wait}
 #result.show{display:block;animation:rise .7s ease both}
 @keyframes rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
 .card-row{display:flex;gap:26px;align-items:flex-start;margin-bottom:38px;flex-wrap:wrap}
+.sign-art{width:190px;flex-shrink:0;border:1px solid var(--field);border-radius:var(--radius);
+  background:var(--deep);aspect-ratio:1/1;object-fit:cover;}
+.sign-fallback{width:190px;flex-shrink:0;aspect-ratio:1/1;border:1px solid var(--field);
+  border-radius:var(--radius);background:var(--deep);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+  font-family:'Fraunces',serif;color:var(--brass);font-size:2.4rem;}
 .card-art{
   width:190px;flex-shrink:0;border:1px solid var(--field);border-radius:var(--radius);
   background:var(--deep);aspect-ratio:2/3;object-fit:cover;
@@ -227,6 +233,7 @@ footer{
       <h2 id="archName">—</h2>
       <div class="coords" id="coords"></div>
     </div>
+    <div id="signSlot"></div>
   </div>
   <div id="sections"></div>
   <div class="actions" id="actions"></div>
@@ -300,6 +307,27 @@ function buildCard(num, name) {
       `<div class="card-fallback"><span class="num">${pad(num)}</span><span>${name}</span></div>`;
   };
   img.src = `/Cards/${pad(num)}.jpg`;
+  slot.appendChild(img);
+}
+
+const SIGN_GLYPHS = {
+  Aries:'♈',Taurus:'♉',Gemini:'♊',Cancer:'♋',Leo:'♌',Virgo:'♍',
+  Libra:'♎',Scorpio:'♏',Sagittarius:'♐',Capricorn:'♑',Aquarius:'♒',Pisces:'♓'
+};
+
+function buildSignCard(sunSign) {
+  const slot = $('signSlot');
+  if (!slot) return;
+  slot.innerHTML = '';
+  if (!sunSign) return;
+  const img = new Image();
+  img.className = 'sign-art';
+  img.alt = sunSign + ' Sun';
+  img.onerror = () => {
+    const glyph = SIGN_GLYPHS[sunSign] || sunSign[0];
+    slot.innerHTML = `<div class="sign-fallback">${glyph}<span style="font-size:12px;font-family:'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">${sunSign}</span></div>`;
+  };
+  img.src = `/SignCards/${sunSign.toLowerCase()}.jpg`;
   slot.appendChild(img);
 }
 
@@ -497,6 +525,7 @@ $('form').addEventListener('submit', async e => {
       })();
 
     buildCard(sun.archetype, label);
+    buildSignCard(sunSign);
     renderSections(data.snapshot);
 
     const actions = $('actions');
