@@ -1,3 +1,4 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -246,10 +247,8 @@ footer{
 // ---- configuration -------------------------------------------------
 const API = "https://the-integrated-self-app-2h96.onrender.com";
 const BYPASS_KEY = new URLSearchParams(window.location.search).get('key') || '';
-const GUMROAD_URL = "#";   // paste your Gumroad product link here
+const GUMROAD_URL = "#";
 
-// Wheel order, anchored so index 0 == Archetype 41 at 2 Aquarius.
-// Must stay identical to mapping.py on the backend.
 const WHEEL_ORDER = [
   41,19,13,49,30,55,37,63,22,36, 25,17,21,51,42,3,27,24,2,23,
   8,20,16,35,45,12,15,52,39,53, 62,56,31,33,7,4,29,59,40,64,
@@ -257,7 +256,6 @@ const WHEEL_ORDER = [
   38,54,61,60
 ];
 
-// ---- draw the 64 ticks ---------------------------------------------
 const dial = document.getElementById('dial');
 const NS = "http://www.w3.org/2000/svg";
 for (let i = 0; i < 64; i++) {
@@ -284,7 +282,6 @@ function lightWheel(archetype) {
   dial.style.transformOrigin = '150px 150px';
 }
 
-// ---- helpers --------------------------------------------------------
 const $ = id => document.getElementById(id);
 const statusEl = $('status');
 
@@ -298,6 +295,7 @@ const pad = n => String(n).padStart(2, '0');
 
 function buildCard(num, name) {
   const slot = $('cardSlot');
+  if (!slot) return;
   slot.innerHTML = '';
   const img = new Image();
   img.className = 'card-art';
@@ -331,17 +329,17 @@ function buildSignCard(sunSign) {
   slot.appendChild(img);
 }
 
-// Split the reading on its four headers.
 function renderSections(text) {
   const host = $('sections');
+  if (!host) return;
   host.innerHTML = '';
-  // Split on numbered section headers, handling optional ### or ** prefixes
+  if (!text) return;
+
   const parts = text.split(/\n(?=\s*(?:[#*]+\s*)?\d\.\s*[A-Z][A-Z\s().]{4,})/);
   parts.forEach(part => {
     const trimmed = part.trim();
     if (!trimmed) return;
     const lines = trimmed.split('\n');
-    // Strip leading #, *, spaces then leading number from header
     let raw = lines[0].replace(/^[#*\s]+/, '').trim();
     let head = raw.replace(/^\d+\.\s*/, '').trim();
     let body = lines.slice(1);
@@ -351,10 +349,7 @@ function renderSections(text) {
     sec.className = 'chunk';
     if (head) sec.innerHTML = `<h3>${head}</h3>`;
 
-    // Real bullets: lines starting with - * • followed by actual content
-    // Filter out bare separator lines like -- or ---
     const bullets = body.filter(l => /^\s*[-*•]\s*\S/.test(l));
-    // De-duplicate RECOGNIZE/IDENTIFY/DECIDE — keep only the first occurrence of each
     const seenLabels = new Set();
     const dedupedBullets = bullets.filter(b => {
       const m = b.replace(/^\s*[-*•]+\s*/,'').match(/^(RECOGNIZE|IDENTIFY|DECIDE)/i);
@@ -363,21 +358,17 @@ function renderSections(text) {
       if (seenLabels.has(k)) return false;
       seenLabels.add(k); return true;
     });
+
     if (dedupedBullets.length >= 2) {
       const ul = document.createElement('ul');
       ul.className = 'rid';
       const ridWords = ['RECOGNIZE','IDENTIFY','DECIDE'];
       dedupedBullets.forEach((b, idx) => {
-        const text = b.replace(/^\s*[-*•]+\s*/, '')
-                      // Normalize a bold-wrapped label (**RECOGNIZE:**, **RECOGNIZE**:, etc.)
-                      // down to plain "LABEL:" so the match below finds it regardless of
-                      // where the AI happened to put the asterisks.
-                      .replace(/^\*{1,2}\s*(RECOGNIZE|IDENTIFY|DECIDE)\s*:?\s*\*{1,2}\s*:?/i, '$1:');
-        const ridMatch = text.match(/^(RECOGNIZE|IDENTIFY|DECIDE)[:\s]+(.*)$/is);
-        const word = ridMatch ? ridMatch[1].toUpperCase()
-                   : (idx < 3 ? ridWords[idx] : null);
-        // Strip repeated label prefix so content doesn't duplicate the header
-        const rawContent = ridMatch ? ridMatch[2].trim() : text;
+        const textStr = b.replace(/^\s*[-*•]+\s*/, '')
+                         .replace(/^\*{1,2}\s*(RECOGNIZE|IDENTIFY|DECIDE)\s*:?\s*\*{1,2}\s*:?/i, '$1:');
+        const ridMatch = textStr.match(/^(RECOGNIZE|IDENTIFY|DECIDE)[:\s]+(.*)$/is);
+        const word = ridMatch ? ridMatch[1].toUpperCase() : (idx < 3 ? ridWords[idx] : null);
+        const rawContent = ridMatch ? ridMatch[2].trim() : textStr;
         const content = rawContent.replace(/^(RECOGNIZE|IDENTIFY|DECIDE)[:\s]+/i, '');
         if (word) {
           const label = document.createElement('span');
@@ -399,7 +390,6 @@ function renderSections(text) {
     } else {
       body.join('\n').split(/\n\s*\n/).forEach(p => {
         const clean = p.trim();
-        // Skip bare separator lines
         if (!clean || /^-{2,}$/.test(clean)) return;
         const el = document.createElement('p');
         el.innerHTML = clean.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
@@ -410,8 +400,6 @@ function renderSections(text) {
   });
 }
 
-
-// ---- tropical sign descriptions ------------------------------------
 const SUN_DESC = {
   Aries:'a spark that strikes before anyone else even sees the match',
   Taurus:'a force that builds slowly, then holds what it builds forever',
@@ -454,6 +442,7 @@ const RISING_DESC = {
   Aquarius:"distinctive and unhurried — someone who clearly isn't performing for anyone",
   Pisces:'soft, receptive, and slightly elsewhere — a presence that feels like water'
 };
+
 function buildSignBlurb(sun, moon, rising) {
   const s = SUN_DESC[sun] || sun;
   const m = MOON_DESC[moon] || moon;
@@ -461,7 +450,7 @@ function buildSignBlurb(sun, moon, rising) {
   return 'Your ' + sun + ' Sun placing is ' + s + '. As your ' + moon + ' Moon rules your emotional center, ' + m + '. While the world witnesses you as your ' + rising + ' Rising — ' + r + '.';
 }
 
-// ---- submit ---------------------------------------------------------
+// ---- submit handler -------------------------------------------------
 $('form').addEventListener('submit', async e => {
   e.preventDefault();
   const btn = $('go');
@@ -469,7 +458,6 @@ $('form').addEventListener('submit', async e => {
   $('result').classList.remove('show');
 
   setStatus('Calculating your coordinate…');
-  // Render's free tier sleeps; warn before the user assumes it's broken.
   const slow = setTimeout(
     () => setStatus('Still calculating — engine is warming up. This can take up to 90 seconds on the first request…'),
     8000
@@ -507,7 +495,8 @@ $('form').addEventListener('submit', async e => {
       body: JSON.stringify(payload)
     });
     clearTimeout(slow);
-    if (!res.ok) throw new Error(`Server responded ${res.status}`);
+
+    if (!res.ok) throw new Error(`Server responded with status ${res.status}`);
     const data = await res.json();
 
     if (!data.archetypes || !data.archetypes.sun) {
@@ -521,7 +510,6 @@ $('form').addEventListener('submit', async e => {
     const nameMatch = (data.snapshot.match(/Archetype\s+\d+[:\s—-]+([A-Za-z' ]+)/) || [])[1];
     const label = nameMatch ? nameMatch.trim() : `Archetype ${sun.archetype}`;
 
-    // Extract signs in outer scope so buildSignCard and coords have full access
     const signsRaw = data.signs || '';
     const signParts = signsRaw.split('|').map(s => s.trim());
     const sunSign    = (signParts[0] || '').replace(/ Sun$/i, '').trim();
@@ -549,18 +537,21 @@ $('form').addEventListener('submit', async e => {
     renderSections(data.snapshot);
 
     const actions = $('actions');
-    actions.innerHTML = '';
-    if (data.pdf_url) {
-      actions.innerHTML += `<a href="${data.pdf_url}" target="_blank" rel="noopener">Download this reading</a>`;
+    if (actions) {
+      actions.innerHTML = '';
+      if (data.pdf_url) {
+        actions.innerHTML += `<a href="${data.pdf_url}" target="_blank" rel="noopener">Download this reading</a>`;
+      }
+      actions.innerHTML += `<a class="primary" href="${GUMROAD_URL}" target="_blank" rel="noopener">Get the full reference book</a>`;
     }
-    actions.innerHTML += `<a class="primary" href="${GUMROAD_URL}" target="_blank" rel="noopener">Get the full reference book</a>`;
 
     $('result').classList.add('show');
     $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   } catch (err) {
     clearTimeout(slow);
-    setStatus('The engine could not be reached. Give it a moment and try again.', true);
+    console.error("UI Render Exception:", err);
+    setStatus(`Engine error: ${err.message || err}`, true);
   } finally {
     btn.disabled = false;
   }
