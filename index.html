@@ -159,6 +159,14 @@ button:disabled{opacity:.45;cursor:wait}
   flex-direction:column;
   justify-content:center;
 }
+.binary-badge{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:12px;
+  letter-spacing:.28em;
+  color:var(--brass);
+  opacity:.85;
+  margin-bottom:8px;
+}
 .meta h2{
   font-family:'Fraunces',serif;
   font-weight:500;
@@ -295,6 +303,7 @@ footer{
   <div class="card-row">
     <div id="cardSlot"></div>
     <div class="meta">
+      <div class="binary-badge" id="binaryBadge">—</div>
       <h2 id="archName">—</h2>
       <div class="coords" id="coords"></div>
     </div>
@@ -524,7 +533,7 @@ function buildSignBlurb(sun, moon, rising) {
 
 function displayReadingData(data) {
   const sun = data.frequencies.sun;
-  const label = `Frequency ${sun.frequency}`;
+  const label = sun.name;
 
   const signsRaw = data.signs || '';
   const signParts = signsRaw.split('|').map(s => s.trim());
@@ -534,13 +543,14 @@ function displayReadingData(data) {
 
   lightWheel(sun.frequency);
   $('dialNum').textContent = pad(sun.frequency);
-  $('dialLabel').textContent = `facet ${sun.facet}`;
+  $('dialLabel').textContent = sun.name;
+  $('binaryBadge').textContent = sun.binary || '';
   $('archName').textContent = label;
 
   $('coords').innerHTML =
-    `Core identity &nbsp;<b>Frequency ${sun.frequency}, facet ${sun.facet}</b><br>` +
-    `Emotional body &nbsp;<b>Frequency ${data.frequencies.moon.frequency}, facet ${data.frequencies.moon.facet}</b><br>` +
-    `Interface &nbsp;<b>Frequency ${data.frequencies.rising.frequency}, facet ${data.frequencies.rising.facet}</b><br>` +
+    `Core identity &nbsp;<b>${sun.name}</b><br>` +
+    `Emotional body &nbsp;<b>${data.frequencies.moon.name}</b><br>` +
+    `Interface &nbsp;<b>${data.frequencies.rising.name}</b><br>` +
     `<span style="color:var(--muted)">${signsRaw}</span>`;
 
   const blurbSlot = $('signBlurbContainer');
