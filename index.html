@@ -152,6 +152,18 @@ button:disabled{opacity:.45;cursor:wait}
 .card-fallback .num{font-family:'Fraunces',serif;font-size:38px;color:var(--brass);letter-spacing:0}
 .sign-fallback .glyph{font-family:'Fraunces',serif;font-size:38px;color:var(--brass)}
 
+.card-col{display:flex;flex-direction:column;align-items:center;gap:10px;flex-shrink:0}
+.variant-toggle{
+  display:flex;border:1px solid var(--field);border-radius:var(--radius);overflow:hidden;
+}
+.variant-btn{
+  font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  padding:7px 12px;background:transparent;color:var(--muted);border:none;cursor:pointer;
+  transition:background .2s,color .2s;
+}
+.variant-btn:hover{color:var(--parchment)}
+.variant-btn.selected{background:var(--brass);color:var(--ink)}
+
 .meta{
   flex:1;
   min-width:0;
@@ -301,7 +313,13 @@ footer{
 
 <div id="result">
   <div class="card-row">
-    <div id="cardSlot"></div>
+    <div class="card-col">
+      <div id="cardSlot"></div>
+      <div class="variant-toggle" id="variantToggle" role="radiogroup" aria-label="Card style">
+        <button type="button" class="variant-btn" data-variant="feminine">Feminine</button>
+        <button type="button" class="variant-btn" data-variant="masculine">Masculine</button>
+      </div>
+    </div>
     <div class="meta">
       <div class="binary-badge" id="binaryBadge">—</div>
       <h2 id="archName">—</h2>
@@ -365,7 +383,52 @@ function setStatus(msg, isError) {
 function clearStatus() { statusEl.className = 'status'; }
 const pad = n => String(n).padStart(2, '0');
 
-function buildCard(num, name) {
+// Best-effort guess only -- this is a starting default, not a determination.
+// The toggle next to the card is the actual correction mechanism.
+const COMMON_FEMININE_NAMES = new Set([
+  'mary','patricia','jennifer','linda','elizabeth','barbara','susan','jessica','sarah','karen',
+  'lisa','nancy','betty','sandra','margaret','ashley','kimberly','emily','donna','michelle',
+  'dorothy','carol','amanda','melissa','deborah','stephanie','rebecca','sharon','laura','cynthia',
+  'kathleen','amy','angela','shirley','anna','ruth','brenda','pamela','nicole','katherine',
+  'samantha','christine','emma','catherine','debra','virginia','rachel','carolyn','janet','maria',
+  'heather','diane','julie','joyce','victoria','kelly','christina','joan','evelyn','olivia',
+  'judith','megan','andrea','cheryl','hannah','jacqueline','martha','gloria','teresa','sara',
+  'janice','marie','julia','grace','judy','abigail','denise','isabella','danielle','tiffany',
+  'natalie','sophia','madison','ava','chloe','ella','avery','mia','scarlett','luna',
+  'aria','zoe','lily','layla','riley','nora','camila','claire','maya','ariana',
+  'valeria','isabel','fatima','priya','anika','sofia','ines','yuki','mei','leilani'
+]);
+
+const COMMON_MASCULINE_NAMES = new Set([
+  'james','robert','john','michael','david','william','richard','joseph','thomas','charles',
+  'christopher','daniel','matthew','anthony','mark','donald','steven','andrew','paul','joshua',
+  'kenneth','kevin','brian','george','edward','ronald','timothy','jason','jeffrey','ryan',
+  'jacob','gary','nicholas','eric','jonathan','stephen','larry','justin','scott','brandon',
+  'benjamin','samuel','gregory','frank','alexander','raymond','patrick','jack','dennis','jerry',
+  'tyler','aaron','jose','henry','adam','douglas','nathan','peter','zachary','walter',
+  'ethan','carl','arthur','sol','sebastian','mateo','liam','noah','lucas','mason',
+  'logan','elijah','oliver','jayden','gabriel','carter','wyatt','julian','luke','isaac',
+  'omar','ahmed','raj','arjun','kai','hiro','kenji','diego','javier','santiago'
+]);
+
+function guessVariantFromName(fullName) {
+  const first = (fullName || '').trim().split(/\s+/)[0].toLowerCase().replace(/[^a-z]/g, '');
+  if (COMMON_FEMININE_NAMES.has(first)) return 'feminine';
+  if (COMMON_MASCULINE_NAMES.has(first)) return 'masculine';
+  // Unknown name -- fall back to a stable (not random) guess so the same
+  // name always defaults the same way, then let the toggle handle the rest.
+  let hash = 0;
+  for (let i = 0; i < first.length; i++) hash = (hash * 31 + first.charCodeAt(i)) >>> 0;
+  return (hash % 2 === 0) ? 'feminine' : 'masculine';
+}
+
+function setVariantToggleUI(variant) {
+  document.querySelectorAll('.variant-btn').forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset.variant === variant);
+  });
+}
+
+function buildCard(num, name, variant) {
   const slot = $('cardSlot');
   if (!slot) return;
   slot.innerHTML = '';
@@ -375,7 +438,7 @@ function buildCard(num, name) {
   img.onerror = () => {
     slot.innerHTML = `<div class="card-fallback"><span class="num">${pad(num)}</span><span>${name}</span></div>`;
   };
-  img.src = `/Cards/${pad(num)}.jpg`;
+  img.src = `/Cards/${variant}/${pad(num)}.jpg`;
   slot.appendChild(img);
 }
 
@@ -384,7 +447,7 @@ const SIGN_GLYPHS = {
   Libra:'♎',Scorpio:'♏',Sagittarius:'♐',Capricorn:'♑',Aquarius:'♒',Pisces:'♓'
 };
 
-function buildSignCard(sunSign) {
+function buildSignCard(sunSign, variant) {
   const slot = $('signSlot');
   if (!slot) return;
   slot.innerHTML = '';
@@ -396,7 +459,7 @@ function buildSignCard(sunSign) {
     const glyph = SIGN_GLYPHS[sunSign] || sunSign[0];
     slot.innerHTML = `<div class="sign-fallback"><span class="glyph">${glyph}</span><span style="font-size:12px;font-family:'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">${sunSign}</span></div>`;
   };
-  img.src = `/SignCards/${sunSign.toLowerCase()}.jpg`;
+  img.src = `/SignCards/${variant}/${sunSign.toLowerCase()}.jpg`;
   slot.appendChild(img);
 }
 
@@ -531,7 +594,10 @@ function buildSignBlurb(sun, moon, rising) {
   return 'Your ' + sun + ' Sun placing is ' + s + '. As your ' + moon + ' Moon rules your emotional center, ' + m + '. While the world witnesses you as your ' + rising + ' Rising — ' + r + '.';
 }
 
+let currentReadingData = null;
+
 function displayReadingData(data) {
+  currentReadingData = data;
   const sun = data.frequencies.sun;
   const label = sun.name;
 
@@ -540,6 +606,7 @@ function displayReadingData(data) {
   const sunSign    = (signParts[0] || '').replace(/ Sun$/i, '').trim();
   const moonSign   = (signParts[1] || '').replace(/ Moon$/i, '').trim();
   const risingSign = (signParts[2] || '').replace(/ Rising$/i, '').trim();
+  currentReadingData._sunSign = sunSign;
 
   lightWheel(sun.frequency);
   $('dialNum').textContent = pad(sun.frequency);
@@ -562,8 +629,12 @@ function displayReadingData(data) {
     }
   }
 
-  buildCard(sun.frequency, label);
-  buildSignCard(sunSign);
+  // Card variant: use a saved manual choice if one exists for this reading,
+  // otherwise default from the name, then let the toggle override it.
+  const variant = data._cardVariant || guessVariantFromName(data.name);
+  setVariantToggleUI(variant);
+  buildCard(sun.frequency, label, variant);
+  buildSignCard(sunSign, variant);
   renderSections(data.snapshot);
 
   const actions = $('actions');
@@ -577,6 +648,21 @@ function displayReadingData(data) {
   $('result').classList.add('show');
   $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
+
+$('variantToggle').addEventListener('click', e => {
+  const btn = e.target.closest('.variant-btn');
+  if (!btn || !currentReadingData) return;
+  const variant = btn.dataset.variant;
+  currentReadingData._cardVariant = variant;
+  setVariantToggleUI(variant);
+  const sun = currentReadingData.frequencies.sun;
+  buildCard(sun.frequency, sun.name, variant);
+  buildSignCard(currentReadingData._sunSign, variant);
+  // Persist the manual choice so a page reload remembers it instead of re-guessing.
+  try {
+    localStorage.setItem('integrated_self_reading', JSON.stringify(currentReadingData));
+  } catch (e) {}
+});
 
 window.addEventListener('DOMContentLoaded', () => {
   const savedReading = localStorage.getItem('integrated_self_reading');
