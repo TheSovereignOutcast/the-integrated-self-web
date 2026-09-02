@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>The Integrated Self — Find your frequency</title>
-<meta name="description" content="Your birth moment is a coordinate on a 64-point wheel. Find the archetype you were born playing.">
+<meta name="description" content="Your birth moment is a coordinate on a 64-point wheel. Find the frequency you were born playing.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,700&family=Spectral:wght@300;400;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -314,10 +314,10 @@ const BYPASS_KEY = new URLSearchParams(window.location.search).get('key') || '';
 const GUMROAD_URL = "https://gumroad.com";
 
 const WHEEL_ORDER = [
-  41,19,13,49,30,55,37,63,22,36, 25,17,21,51,42,3,27,24,2,23,
-  8,20,16,35,45,12,15,52,39,53, 62,56,31,33,7,4,29,59,40,64,
-  47,6,46,18,48,57,32,50,28,44, 1,43,14,34,9,5,26,11,10,58,
-  38,54,61,60
+  1,10,13,25,44,6,33,12,43,58, 52,17,28,47,31,45,14,38,30,21,
+  50,36,56,35,34,54,55,51,32,40, 62,16,9,22,37,42,57,59,53,20,
+  5,60,63,3,48,29,39,8,26,41, 61,27,18,4,49,23,11,19,64,24,
+  46,7,15,2
 ];
 
 const dial = document.getElementById('dial');
@@ -335,8 +335,8 @@ for (let i = 0; i < 64; i++) {
 }
 const ticks = [...dial.querySelectorAll('.tick')];
 
-function lightWheel(archetype) {
-  const idx = WHEEL_ORDER.indexOf(archetype);
+function lightWheel(frequency) {
+  const idx = WHEEL_ORDER.indexOf(frequency);
   ticks.forEach(t => t.classList.remove('lit', 'near'));
   if (idx < 0) return;
   ticks[idx].classList.add('lit');
@@ -362,7 +362,7 @@ function buildCard(num, name) {
   slot.innerHTML = '';
   const img = new Image();
   img.className = 'card-art';
-  img.alt = `Archetype ${num}, ${name}`;
+  img.alt = `Frequency ${num}, ${name}`;
   img.onerror = () => {
     slot.innerHTML = `<div class="card-fallback"><span class="num">${pad(num)}</span><span>${name}</span></div>`;
   };
@@ -523,8 +523,8 @@ function buildSignBlurb(sun, moon, rising) {
 }
 
 function displayReadingData(data) {
-  const sun = data.archetypes.sun;
-  const label = `Archetype ${sun.archetype}`;
+  const sun = data.frequencies.sun;
+  const label = `Frequency ${sun.frequency}`;
 
   const signsRaw = data.signs || '';
   const signParts = signsRaw.split('|').map(s => s.trim());
@@ -532,15 +532,15 @@ function displayReadingData(data) {
   const moonSign   = (signParts[1] || '').replace(/ Moon$/i, '').trim();
   const risingSign = (signParts[2] || '').replace(/ Rising$/i, '').trim();
 
-  lightWheel(sun.archetype);
-  $('dialNum').textContent = pad(sun.archetype);
-  $('dialLabel').textContent = `line ${sun.line}`;
+  lightWheel(sun.frequency);
+  $('dialNum').textContent = pad(sun.frequency);
+  $('dialLabel').textContent = `facet ${sun.facet}`;
   $('archName').textContent = label;
 
   $('coords').innerHTML =
-    `Core identity &nbsp;<b>Archetype ${sun.archetype}, line ${sun.line}</b><br>` +
-    `Emotional body &nbsp;<b>Archetype ${data.archetypes.moon.archetype}, line ${data.archetypes.moon.line}</b><br>` +
-    `Interface &nbsp;<b>Archetype ${data.archetypes.rising.archetype}, line ${data.archetypes.rising.line}</b><br>` +
+    `Core identity &nbsp;<b>Frequency ${sun.frequency}, facet ${sun.facet}</b><br>` +
+    `Emotional body &nbsp;<b>Frequency ${data.frequencies.moon.frequency}, facet ${data.frequencies.moon.facet}</b><br>` +
+    `Interface &nbsp;<b>Frequency ${data.frequencies.rising.frequency}, facet ${data.frequencies.rising.facet}</b><br>` +
     `<span style="color:var(--muted)">${signsRaw}</span>`;
 
   const blurbSlot = $('signBlurbContainer');
@@ -552,7 +552,7 @@ function displayReadingData(data) {
     }
   }
 
-  buildCard(sun.archetype, label);
+  buildCard(sun.frequency, label);
   buildSignCard(sunSign);
   renderSections(data.snapshot);
 
@@ -620,7 +620,7 @@ $('form').addEventListener('submit', async e => {
     if (!res.ok) throw new Error(`Server responded with HTTP ${res.status}`);
     const data = await res.json();
 
-    if (!data.archetypes || !data.archetypes.sun) {
+    if (!data.frequencies || !data.frequencies.sun) {
       setStatus(data.snapshot || 'Calculation error. Check birth details and try again.', true);
       btn.disabled = false;
       return;
