@@ -10,13 +10,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,700&family=Spectral:wght@300;400;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{
-  --ink:#080D1C;
-  --deep:#111A38;
-  --field:#1B2547;
-  --parchment:#EDE8DC;
-  --muted:#8992B4;
+  --ink:#0B0B0B;
+  --deep:#141414;
+  --field:#232323;
+  --parchment:#EDEDED;
+  --muted:#A8A9AD;
   --brass:#C9922B;
-  --signal:#6F7BE8;
+  --signal:#003EFF;
   --radius:2px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -30,7 +30,7 @@ body{
   line-height:1.65;
   -webkit-font-smoothing:antialiased;
   background-image:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(111,123,232,.18), transparent 60%),
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0,62,255,.14), transparent 60%),
     radial-gradient(ellipse 60% 40% at 50% 105%, rgba(201,146,43,.08), transparent 60%);
   background-attachment:fixed;
 }
@@ -75,7 +75,7 @@ label{
   text-transform:uppercase;color:var(--muted);
 }
 input,textarea{
-  background:rgba(27,37,71,.5);
+  background:rgba(255,255,255,.04);
   border:1px solid var(--field);
   border-radius:var(--radius);
   color:var(--parchment);
@@ -84,7 +84,7 @@ input,textarea{
   transition:border-color .2s,background .2s;
 }
 input:focus,textarea:focus{
-  outline:none;border-color:var(--signal);background:rgba(27,37,71,.85);
+  outline:none;border-color:var(--signal);background:rgba(255,255,255,.06);
 }
 textarea{resize:vertical;min-height:78px}
 .hint{font-size:13px;color:var(--muted);font-style:italic}
@@ -201,7 +201,7 @@ button:disabled{opacity:.45;cursor:wait}
   color:var(--parchment);
   font-style:italic;
   padding:18px 22px;
-  background:rgba(27,37,71,.35);
+  background:rgba(255,255,255,.03);
   border:1px solid var(--field);
   border-radius:var(--radius);
   margin-bottom:38px;
@@ -215,7 +215,7 @@ section.chunk h3{
 }
 section.chunk p{margin-bottom:13px}
 .rid li{list-style:none;padding:11px 0 11px 15px;border-left:2px solid var(--signal);
-  margin-bottom:9px;background:rgba(111,123,232,.06)}
+  margin-bottom:9px;background:rgba(0,62,255,.06)}
 .rid-label{font-family:'Fraunces',Georgia,serif;font-size:1.5rem;font-weight:500;
   color:var(--parchment);padding:22px 0 6px;display:block;
   border-top:1px solid var(--field);margin-top:6px}
