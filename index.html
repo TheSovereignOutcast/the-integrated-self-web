@@ -253,6 +253,19 @@ footer{
 @media(prefers-reduced-motion:reduce){
   *{animation-duration:.01ms!important;transition-duration:.01ms!important}
 }
+
+  /* Birth date dropdowns */
+  .dob { display: grid; grid-template-columns: 1.5fr 1fr 1.2fr; gap: 8px; }
+  .dob select {
+    appearance: none; -webkit-appearance: none; width: 100%; min-width: 0;
+    background: rgba(255, 255, 255, 0.04) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23A8A9AD'/%3E%3C/svg%3E") no-repeat right 12px center;
+    border: 1px solid var(--field); border-radius: var(--radius); color: var(--parchment);
+    font-family: Spectral, serif; font-size: 16px; padding: 13px 30px 13px 14px; cursor: pointer;
+    transition: border-color 0.2s, background-color 0.2s;
+  }
+  .dob select:focus { outline: none; border-color: var(--signal); background-color: rgba(255, 255, 255, 0.06); }
+  .dob select:invalid { color: var(--muted); }
+  .dob option { background: var(--deep); color: var(--parchment); }
 </style>
 </head>
 <body>
@@ -289,8 +302,13 @@ footer{
       <input id="email" name="email" type="email" placeholder="Where to send your PDF reading" required>
     </div>
     <div class="field">
-      <label for="date">Birth date</label>
-      <input id="date" name="date" type="date" required>
+      <label for="dob-month">Birth date</label>
+      <div class="dob">
+        <select id="dob-month" aria-label="Birth month" required><option value="">Month</option></select>
+        <select id="dob-day" aria-label="Birth day" required><option value="">Day</option></select>
+        <select id="dob-year" aria-label="Birth year" required><option value="">Year</option></select>
+      </div>
+      <input id="date" name="date" type="hidden">
     </div>
     <div class="field">
       <label for="time">Birth time</label>
@@ -733,6 +751,27 @@ $('form').addEventListener('submit', async e => {
     btn.disabled = false;
   }
 });
+</script>
+<script>
+/* Birth date dropdowns: fills Month/Day/Year and writes YYYY-MM-DD into the hidden #date field */
+(function () {
+  var m = document.getElementById('dob-month'), d = document.getElementById('dob-day'),
+      y = document.getElementById('dob-year'), out = document.getElementById('date');
+  ['January','February','March','April','May','June','July','August','September','October','November','December']
+    .forEach(function (n, i) { m.add(new Option(n, String(i + 1).padStart(2, '0'))); });
+  for (var yr = new Date().getFullYear(); yr >= 1900; yr--) y.add(new Option(yr, yr));
+  function fillDays() {
+    var keep = d.value, max = new Date(+y.value || 2000, +m.value || 1, 0).getDate();
+    d.length = 1;
+    for (var i = 1; i <= max; i++) d.add(new Option(i, String(i).padStart(2, '0')));
+    if (keep && +keep <= max) d.value = keep;
+  }
+  function sync() { out.value = (y.value && m.value && d.value) ? y.value + '-' + m.value + '-' + d.value : ''; }
+  fillDays();
+  m.addEventListener('change', function () { fillDays(); sync(); });
+  y.addEventListener('change', function () { fillDays(); sync(); });
+  d.addEventListener('change', sync);
+})();
 </script>
 </body>
 </html>
